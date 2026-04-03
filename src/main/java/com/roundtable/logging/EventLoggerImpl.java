@@ -94,7 +94,7 @@ public class EventLoggerImpl implements EventLogger {
                 INSERT INTO app_event_log
                   (level, module, component, event_type, session_id,
                    agent_id, message, metadata, duration_ms)
-                VALUES (?, ?, ?, ?, ?:uuid, ?, ?, ?::jsonb, ?)
+                VALUES (?, ?, ?, ?, ?::uuid, ?, ?, ?::jsonb, ?)
                 """,
                 level, module, component, eventType,
                 sessionId != null ? sessionId.toString() : null,

@@ -59,7 +59,10 @@ public class DataCacheService {
                 return Optional.empty();
             }
 
-            String json = (String) rows.get(0).get("data");
+            Object dataObj = rows.get(0).get("data");
+            String json = dataObj instanceof String
+                    ? (String) dataObj
+                    : dataObj.toString();
             @SuppressWarnings("unchecked")
             Map<String, Object> data = objectMapper.readValue(json, Map.class);
 

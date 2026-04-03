@@ -54,7 +54,7 @@ public class ContextLoader {
 
         List<RoundRecord> rounds = new ArrayList<>();
         for (Map<String, Object> row : roundRows) {
-            UUID roundId     = (UUID) row.get("id");
+            UUID roundId     = UUID.fromString((String) row.get("id"));
             int  roundNumber = (int) row.get("round_number");
 
             List<AgentResponseRecord> responses = loadResponsesForRound(roundId);

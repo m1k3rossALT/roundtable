@@ -7,30 +7,27 @@ import com.roundtable.memory.MemoryRecords.*;
 import lombok.RequiredArgsConstructor;
 import lombok.extern.slf4j.Slf4j;
 import org.springframework.jdbc.core.JdbcTemplate;
-import org.springframework.jdbc.support.GeneratedKeyHolder;
 import org.springframework.stereotype.Service;
 import org.springframework.transaction.annotation.Transactional;
 
-import java.sql.PreparedStatement;
-import java.sql.Statement;
 import java.time.Instant;
 import java.util.*;
 
 /**
  * MemoryService implementation.
- * All database access for sessions, rounds, and responses goes through here.
+ *
+ * UUID FIX: PostgreSQL UUID columns require explicit ::uuid cast when passing
+ * UUID values as VARCHAR via JdbcTemplate. All UUID params use ::uuid cast.
  */
 @Slf4j
 @Service
 @RequiredArgsConstructor
 public class MemoryServiceImpl implements MemoryService {
 
-    private final JdbcTemplate jdbcTemplate;
-    private final ObjectMapper objectMapper;
-    private final EventLogger  eventLogger;
+    private final JdbcTemplate  jdbcTemplate;
+    private final ObjectMapper  objectMapper;
+    private final EventLogger   eventLogger;
     private final ContextLoader contextLoader;
-
-    // ─── Session creation ─────────────────────────────────────────────────────
 
     @Override
     @Transactional
@@ -44,12 +41,9 @@ public class MemoryServiceImpl implements MemoryService {
             INSERT INTO sessions
               (id, title, type, status, global_context,
                risk_tolerance, asset_class, topic)
-            VALUES (?, ?, ?, 'active', ?, ?, ?, ?)
+            VALUES (?::uuid, ?, ?, 'active', ?, ?, ?, ?)
             """,
-            // sessionId.toString() sends a string to PostgreSQL instead of a UUID
-            // sessionId.toString(),
-            // Replacing it with sessionId only
-            sessionId,
+            sessionId.toString(),
             request.getTitle(),
             request.getType(),
             request.getGlobalContext(),
@@ -60,8 +54,7 @@ public class MemoryServiceImpl implements MemoryService {
 
         eventLogger.info("MEMORY", "MemoryServiceImpl", "SESSION_START",
                 sessionId, "Session created",
-                Map.of("type",  request.getType(),
-                       "topic", request.getTopic()));
+                Map.of("type", request.getType(), "topic", request.getTopic()));
 
         return SessionRecord.builder()
                 .id(sessionId)
@@ -79,21 +72,19 @@ public class MemoryServiceImpl implements MemoryService {
                 .build();
     }
 
-    // ─── Session loading ──────────────────────────────────────────────────────
-
     @Override
     public SessionRecord loadSession(UUID sessionId) {
         log.debug("[MEMORY] Loading session {}", sessionId);
 
         var rows = jdbcTemplate.queryForList(
-            "SELECT * FROM sessions WHERE id = ?", sessionId.toString());
+            "SELECT * FROM sessions WHERE id = ?::uuid", sessionId.toString());
 
         if (rows.isEmpty()) {
             throw new IllegalArgumentException("Session not found: " + sessionId);
         }
 
-        Map<String, Object> row = rows.get(0);
-        List<RoundRecord> recentRounds = contextLoader.loadRecentRounds(sessionId);
+        Map<String, Object> row    = rows.get(0);
+        List<RoundRecord>   rounds = contextLoader.loadRecentRounds(sessionId);
 
         return SessionRecord.builder()
                 .id(sessionId)
@@ -105,11 +96,9 @@ public class MemoryServiceImpl implements MemoryService {
                 .assetClass((String) row.get("asset_class"))
                 .topic((String) row.get("topic"))
                 .parentSessionIds(List.of())
-                .recentRounds(recentRounds)
+                .recentRounds(rounds)
                 .build();
     }
-
-    // ─── Active sessions ──────────────────────────────────────────────────────
 
     @Override
     public List<SessionSummary> getActiveSessions() {
@@ -135,8 +124,6 @@ public class MemoryServiceImpl implements MemoryService {
         );
     }
 
-    // ─── Save round ───────────────────────────────────────────────────────────
-
     @Override
     @Transactional
     public void saveRound(UUID sessionId, int roundNumber,
@@ -144,14 +131,13 @@ public class MemoryServiceImpl implements MemoryService {
 
         log.debug("[MEMORY] Saving round {} for session {}", roundNumber, sessionId);
 
-        // Create round record
         UUID roundId = UUID.randomUUID();
+
         jdbcTemplate.update(
-            "INSERT INTO debate_rounds (id, session_id, round_number) VALUES (?, ?, ?)",
+            "INSERT INTO debate_rounds (id, session_id, round_number) VALUES (?::uuid, ?::uuid, ?)",
             roundId.toString(), sessionId.toString(), roundNumber
         );
 
-        // Save each agent response
         for (AgentResponseRecord resp : responses) {
             try {
                 Map<String, String> structured = Map.of(
@@ -162,18 +148,20 @@ public class MemoryServiceImpl implements MemoryService {
                 );
                 String structuredJson = objectMapper.writeValueAsString(structured);
 
+                // agent_id can be null if agent lookup failed — use NULL instead of bad cast
+                String agentId = resp.getAgentId();
+
                 jdbcTemplate.update(
                     """
                     INSERT INTO agent_responses
                       (id, round_id, agent_id, provider, model,
                        structured_output, raw_text, prompt_version,
-                       response_time_ms, token_count,
-                       success, error_message)
-                    VALUES (?::uuid, ?::uuid, ?, ?, ?, ?::jsonb, ?, ?, ?, ?, ?, ?)
+                       response_time_ms, token_count, success, error_message)
+                    VALUES (?::uuid, ?::uuid, ?::uuid, ?, ?, ?::jsonb, ?, ?, ?, ?, ?, ?)
                     """,
                     UUID.randomUUID().toString(),
                     roundId.toString(),
-                    resp.getAgentId(),
+                    agentId,
                     resp.getProvider(),
                     resp.getModel(),
                     structuredJson,
@@ -190,19 +178,15 @@ public class MemoryServiceImpl implements MemoryService {
             }
         }
 
-        // Update session last_active_at
         jdbcTemplate.update(
-            "UPDATE sessions SET last_active_at = NOW() WHERE id = ?",
+            "UPDATE sessions SET last_active_at = NOW() WHERE id = ?::uuid",
             sessionId.toString()
         );
 
         eventLogger.info("MEMORY", "MemoryServiceImpl", "ROUND_SAVED",
                 sessionId, "Round saved",
-                Map.of("roundNumber",   roundNumber,
-                       "responseCount", responses.size()));
+                Map.of("roundNumber", roundNumber, "responseCount", responses.size()));
     }
-
-    // ─── Save synthesis ───────────────────────────────────────────────────────
 
     @Override
     @Transactional
@@ -223,36 +207,24 @@ public class MemoryServiceImpl implements MemoryService {
                 objectMapper.writeValueAsString(synthesis.getKeyRisks()),
                 synthesis.getSuggestedNext()
             );
-
             eventLogger.info("MEMORY", "MemoryServiceImpl", "SYNTHESIS_SAVED",
                     sessionId, "Synthesis saved", Map.of());
-
         } catch (Exception e) {
             eventLogger.error("MEMORY", "MemoryServiceImpl", "SYNTHESIS_SAVE_FAILED",
                     sessionId, "Failed to save synthesis", e, Map.of());
         }
     }
 
-    // ─── Session combining ────────────────────────────────────────────────────
-
     @Override
     public CombinedContext prepareCombinedContext(List<UUID> sessionIds) {
-        log.debug("[MEMORY] Preparing combined context for {} sessions", sessionIds.size());
-
         List<String> summaries = new ArrayList<>();
-
         for (UUID id : sessionIds) {
-            SessionRecord session = loadSession(id);
-            String summary = buildSessionSummary(session);
-            summaries.add(summary);
+            summaries.add(buildSessionSummary(loadSession(id)));
         }
-
-        String merged = buildMergedContext(summaries);
-
         return CombinedContext.builder()
                 .sourceSessionIds(sessionIds)
                 .sourceSummaries(summaries)
-                .mergedContext(merged)
+                .mergedContext(buildMergedContext(summaries))
                 .build();
     }
 
@@ -260,55 +232,36 @@ public class MemoryServiceImpl implements MemoryService {
     @Transactional
     public SessionRecord confirmCombinedSession(CombinedContext combinedContext,
                                                  SessionRequest request) {
-        // Create the new combined session with parent references
         SessionRecord session = createSession(request);
-
-        // Store parent session IDs
         String parentIds = combinedContext.getSourceSessionIds().stream()
-                .map(UUID::toString)
-                .reduce((a, b) -> a + "," + b)
-                .orElse("");
-
+                .map(UUID::toString).reduce((a, b) -> a + "," + b).orElse("");
         jdbcTemplate.update(
-            "UPDATE sessions SET parent_session_ids = ?::uuid[], type = 'combined' WHERE id = ?",
+            "UPDATE sessions SET parent_session_ids = ?::uuid[], type = 'combined' WHERE id = ?::uuid",
             "{" + parentIds + "}", session.getId().toString()
         );
-
-        eventLogger.info("MEMORY", "MemoryServiceImpl", "SESSION_COMBINED",
-                session.getId(), "Sessions combined",
-                Map.of("sourceCount", combinedContext.getSourceSessionIds().size()));
-
         return session;
     }
-
-    // ─── Conclude session ─────────────────────────────────────────────────────
 
     @Override
     public void concludeSession(UUID sessionId) {
         jdbcTemplate.update(
-            "UPDATE sessions SET status = 'concluded', concluded_at = NOW() WHERE id = ?",
+            "UPDATE sessions SET status = 'concluded', concluded_at = NOW() WHERE id = ?::uuid",
             sessionId.toString()
         );
         eventLogger.info("MEMORY", "MemoryServiceImpl", "SESSION_CONCLUDED",
                 sessionId, "Session concluded", Map.of());
     }
 
-    // ─── Helpers ─────────────────────────────────────────────────────────────
-
     private String buildSessionSummary(SessionRecord session) {
         StringBuilder sb = new StringBuilder();
         sb.append("Session: ").append(session.getTitle()).append("\n");
         sb.append("Topic: ").append(session.getTopic()).append("\n");
-        sb.append("Rounds completed: ").append(session.getRecentRounds().size()).append("\n");
-
         if (!session.getRecentRounds().isEmpty()) {
-            sb.append("Key positions discussed:\n");
             session.getRecentRounds().forEach(round ->
                 round.getResponses().forEach(resp -> {
-                    if (resp.getPosition() != null) {
+                    if (resp.getPosition() != null)
                         sb.append("  - ").append(resp.getAgentName())
                           .append(": ").append(resp.getPosition()).append("\n");
-                    }
                 })
             );
         }
@@ -317,17 +270,11 @@ public class MemoryServiceImpl implements MemoryService {
 
     private String buildMergedContext(List<String> summaries) {
         StringBuilder sb = new StringBuilder();
-        sb.append("COMBINED CONTEXT FROM PRIOR SESSIONS\n");
-        sb.append("═══════════════════════════════════════\n\n");
-        for (int i = 0; i < summaries.size(); i++) {
-            sb.append("── Prior Session ").append(i + 1).append(" ──\n");
-            sb.append(summaries.get(i)).append("\n");
-        }
-        sb.append("═══════════════════════════════════════\n");
+        sb.append("COMBINED CONTEXT FROM PRIOR SESSIONS\n═══════════════════\n\n");
+        for (int i = 0; i < summaries.size(); i++)
+            sb.append("── Session ").append(i + 1).append(" ──\n").append(summaries.get(i)).append("\n");
         return sb.toString();
     }
 
-    private String nvl(String val) {
-        return val != null ? val : "";
-    }
+    private String nvl(String val) { return val != null ? val : ""; }
 }

@@ -22,7 +22,7 @@ INSERT INTO agents (name, provider, model, domain, persona, output_format, activ
 VALUES (
     'The Fundamentalist',
     'gemini',
-    'gemini-2.0-flash-exp',
+    'gemini-2.0-flash',
     'Valuation, earnings, financial statements, competitive positioning',
     'You are a fundamental analyst with deep expertise in equity valuation, '
     'earnings analysis, balance sheet health, and business model assessment. '
@@ -73,7 +73,7 @@ INSERT INTO agents (name, provider, model, domain, persona, output_format, activ
 VALUES (
     'The Contrarian',
     'openrouter',
-    'meta-llama/llama-3.3-70b-instruct:free',
+    'mistralai/mistral-7b-instruct:free',
     'Challenging consensus, asymmetric opportunities, first-principles thinking',
     'You are a contrarian thinker who questions every assumption the other agents '
     'make. Your value is not in being negative but in finding what the consensus '
@@ -90,7 +90,7 @@ INSERT INTO agents (name, provider, model, domain, persona, output_format, activ
 VALUES (
     'The Synthesiser',
     'gemini',
-    'gemini-2.0-flash-exp',
+    'gemini-2.0-flash',
     'Synthesis, structured summarisation, decision briefs',
     'You are a neutral synthesis agent. You do not hold opinions. Your job is to '
     'read a completed debate and produce a structured, accurate summary of what '

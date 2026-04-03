@@ -9,6 +9,7 @@ import org.springframework.stereotype.Service;
 import java.util.List;
 import java.util.Map;
 import java.util.UUID;
+import java.util.stream.Collectors;
 
 /**
  * Loads and manages agents from the agents database table.
@@ -81,10 +82,14 @@ public class AgentRegistry {
     // ─── Mapping ─────────────────────────────────────────────────────────────
 
     private AgentDefinition mapToDefinition(Map<String, Object> row) {
+        // PostgreSQL returns UUID columns as java.util.UUID objects, not Strings
+        Object idObj = row.get("id");
+        UUID id = idObj instanceof UUID
+                ? (UUID) idObj
+                : UUID.fromString(idObj.toString());
+
         return AgentDefinition.builder()
-                // 
-                // .id(UUID.fromString((String) row.get("id")))
-                .id((UUID) row.get("id"))
+                .id(id)
                 .name((String) row.get("name"))
                 .provider((String) row.get("provider"))
                 .model((String) row.get("model"))
