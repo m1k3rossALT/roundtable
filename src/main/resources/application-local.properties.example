@@ -1,0 +1,33 @@
+# ─────────────────────────────────────────────────────────────────────────────
+# ROUNDTABLE — Local Configuration Template
+#
+# SETUP:
+#   cp application-local.properties.example application-local.properties
+#   Fill in your keys. This file is gitignored — keys never leave your machine.
+#
+# FREE KEY SOURCES:
+#   Gemini     → https://aistudio.google.com/app/apikey
+#   Groq       → https://console.groq.com/keys
+#   Mistral    → https://console.mistral.ai/api-keys
+#   OpenRouter → https://openrouter.ai/settings/keys
+#   FRED       → https://fred.stlouisfed.org/docs/api/api_key.html
+# ─────────────────────────────────────────────────────────────────────────────
+
+roundtable.providers.gemini.api-key=YOUR_GEMINI_KEY
+roundtable.providers.groq.api-key=YOUR_GROQ_KEY
+roundtable.providers.mistral.api-key=YOUR_MISTRAL_KEY
+roundtable.providers.openrouter.api-key=YOUR_OPENROUTER_KEY
+roundtable.data.fred.api-key=YOUR_FRED_KEY
+
+# ─── Optional overrides ───────────────────────────────────────────────────────
+# roundtable.debate.max-tokens=1000
+# roundtable.debate.temperature=0.8
+
+# ─── TRACE logging — uncomment to enable for debugging ────────────────────────
+# WARNING: TRACE logs contain full prompts, responses, and HTTP bodies.
+# They may contain sensitive financial data. Never commit or share them.
+#
+# logging.level.com.roundtable.module.debate=TRACE
+# logging.level.com.roundtable.agent=TRACE
+# logging.level.com.roundtable.data=TRACE
+# logging.level.com.roundtable.memory=TRACE

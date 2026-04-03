@@ -1,0 +1,27 @@
+# ─── Build ────────────────────────────────────────────────────────────────────
+target/
+*.jar
+*.war
+*.class
+
+# ─── IDE ──────────────────────────────────────────────────────────────────────
+.idea/
+*.iml
+.vscode/
+*.DS_Store
+
+# ─── Maven ────────────────────────────────────────────────────────────────────
+.mvn/wrapper/maven-wrapper.jar
+
+# ─── LOCAL SECRETS — NEVER COMMIT ─────────────────────────────────────────────
+# Your API keys live here. This file never leaves your machine.
+src/main/resources/application-local.properties
+
+# ─── Logs ─────────────────────────────────────────────────────────────────────
+# Log files may contain sensitive financial data and full prompt traces.
+# Never commit them.
+logs/
+*.log
+
+# ─── Docker volumes (local data) ──────────────────────────────────────────────
+docker/volumes/

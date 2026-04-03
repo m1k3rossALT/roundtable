@@ -1,0 +1,62 @@
+version: '3.9'
+
+# ─────────────────────────────────────────────────────────────────────────────
+# Roundtable — Docker Compose
+#
+# Starts: PostgreSQL (with pgvector) + Roundtable Spring Boot app
+#
+# Usage:
+#   docker-compose up -d          # start everything
+#   docker-compose logs -f app    # follow app logs
+#   docker-compose down           # stop (data persists in ./docker/volumes)
+#   docker-compose down -v        # stop and wipe all data
+# ─────────────────────────────────────────────────────────────────────────────
+
+services:
+
+  # ─── PostgreSQL + pgvector ─────────────────────────────────────────────────
+  db:
+    image: pgvector/pgvector:pg16
+    container_name: roundtable-db
+    restart: unless-stopped
+    environment:
+      POSTGRES_DB:       roundtable
+      POSTGRES_USER:     roundtable
+      POSTGRES_PASSWORD: roundtable
+    ports:
+      - "5432:5432"
+    volumes:
+      - ./docker/volumes/postgres:/var/lib/postgresql/data
+    healthcheck:
+      test: ["CMD-SHELL", "pg_isready -U roundtable -d roundtable"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  # ─── Roundtable Spring Boot App ────────────────────────────────────────────
+  app:
+    build:
+      context: .
+      dockerfile: Dockerfile
+    container_name: roundtable-app
+    restart: unless-stopped
+    depends_on:
+      db:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+    environment:
+      # Override DB URL to use Docker service name
+      SPRING_DATASOURCE_URL: jdbc:postgresql://db:5432/roundtable
+      SPRING_PROFILES_ACTIVE: local
+      # API keys — set in your shell or a .env file (never hardcoded here)
+      GEMINI_API_KEY:     ${GEMINI_API_KEY:-}
+      GROQ_API_KEY:       ${GROQ_API_KEY:-}
+      MISTRAL_API_KEY:    ${MISTRAL_API_KEY:-}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
+      FRED_API_KEY:       ${FRED_API_KEY:-}
+    volumes:
+      # Mount logs directory so you can read them on the host
+      - ./logs:/app/logs
+      # Mount local properties if it exists (keys override)
+      - ./src/main/resources/application-local.properties:/app/config/application-local.properties:ro

@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8"/>
+    <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+    <title>Roundtable — Financial Intelligence</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com"/>
+    <link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Syne:wght@400;600;700;800&family=DM+Mono:wght@300;400;500&display=swap"/>
+    <link rel="stylesheet" href="/css/styles.css"/>
+</head>
+<body>
+
+<!-- ─── DISCLAIMER (always visible) ─────────────────────────────────────────── -->
+<div class="disclaimer">
+    AI-generated analysis for informational purposes only. Not financial advice.
+    Verify independently before acting.
+</div>
+
+<!-- ─── STARTUP SCREEN ───────────────────────────────────────────────────────── -->
+<div id="screen-startup" class="screen active">
+    <div class="container">
+        <header class="header">
+            <div class="eyebrow">Multi-Agent Financial Intelligence</div>
+            <h1>Roundtable</h1>
+            <p class="subtitle">Structured debate between specialist AI agents — grounded in real financial data.</p>
+        </header>
+
+        <!-- Provider status -->
+        <div id="provider-badges" class="provider-badges"></div>
+
+        <!-- Active sessions -->
+        <section class="section" id="ongoing-section" style="display:none">
+            <div class="section-label">Continue a Discussion</div>
+            <div id="ongoing-sessions" class="session-list"></div>
+        </section>
+
+        <!-- New debate -->
+        <section class="section">
+            <div class="section-label">Start New Debate</div>
+
+            <div class="field-group">
+                <label class="field-label">Session Type</label>
+                <select id="session-type" class="input">
+                    <option value="standalone">Standalone — one-off debate</option>
+                    <option value="ongoing">Ongoing — I'll return to this topic</option>
+                </select>
+            </div>
+
+            <div class="field-group">
+                <label class="field-label">Title</label>
+                <input id="session-title" class="input" type="text"
+                       placeholder="e.g. NVDA long thesis, Rate cycle impact on tech"/>
+            </div>
+
+            <div class="field-group">
+                <label class="field-label">Ticker <span class="optional">(optional)</span></label>
+                <input id="ticker-input" class="input" type="text"
+                       placeholder="e.g. NVDA, AAPL, SPY"/>
+            </div>
+
+            <div class="field-group">
+                <label class="field-label">Topic / Question</label>
+                <textarea id="topic-input" class="textarea" rows="3"
+                          placeholder="e.g. Is NVDA fairly valued at current prices given AI infrastructure spend trajectories?"></textarea>
+            </div>
+
+            <div class="field-group">
+                <label class="field-label">Global Context</label>
+                <textarea id="global-context" class="textarea" rows="4"
+                          placeholder="Shared expert framing for all agents...">You are all senior financial experts participating in a structured investment debate.
+Support arguments with data from the provided context. Cite specific figures.
+Do not speculate beyond what the data supports. Speak in first person.
+Reference other participants by name when engaging with their points.</textarea>
+            </div>
+
+            <div class="field-group">
+                <label class="field-label">Risk Tolerance</label>
+                <select id="risk-tolerance" class="input">
+                    <option value="moderate">Moderate</option>
+                    <option value="conservative">Conservative</option>
+                    <option value="aggressive">Aggressive</option>
+                </select>
+            </div>
+
+            <div class="field-group">
+                <label class="field-label">Rounds</label>
+                <select id="target-rounds" class="input">
+                    <option value="2">2 rounds (default)</option>
+                    <option value="1">1 round</option>
+                    <option value="3">3 rounds</option>
+                </select>
+            </div>
+
+            <button class="btn-primary" onclick="startDebate()">Begin Debate →</button>
+        </section>
+    </div>
+</div>
+
+<!-- ─── DEBATE SCREEN ────────────────────────────────────────────────────────── -->
+<div id="screen-debate" class="screen">
+
+    <nav class="topbar">
+        <div class="topbar-left">
+            <div class="topbar-eyebrow">Roundtable</div>
+            <div id="topbar-topic" class="topbar-topic"></div>
+        </div>
+        <div class="topbar-right">
+            <div id="round-pips" class="round-pips"></div>
+            <button class="btn-secondary" onclick="goHome()">← Home</button>
+        </div>
+    </nav>
+
+    <div id="debate-feed" class="debate-feed"></div>
+
+    <div class="bottom-bar">
+        <div id="bottom-status" class="bottom-status"></div>
+    </div>
+</div>
+
+<!-- ─── LOADING OVERLAY ───────────────────────────────────────────────────────── -->
+<div id="loading-overlay" class="loading-overlay hidden">
+    <div class="loading-card">
+        <div class="spinner"></div>
+        <div id="loading-msg" class="loading-msg">Starting debate...</div>
+    </div>
+</div>
+
+<script src="/js/app.js"></script>
+</body>
+</html>
